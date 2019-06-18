@@ -31,18 +31,24 @@ class DataThread(QThread):
             for k, stream in enumerate(self.streams):
                 n = stream.name()
                 stream_params = copy.deepcopy(self.def_stream_parms)
+                stream_params['inlet'] = pylsl.StreamInlet(stream)
+                # Extended meta data using info object
+                info = stream_params['inlet'].info()
+                channelLabels = []
+                print("Getting channel names from stream metadata...")
+                ch = info.desc().child("channels").child("channel")
+                for ch_ix in range(info.channel_count()):
+                    #print(ch.desc())
+                    print("  " + ch.child_value("label"))
+                    channelLabels.append(ch.child_value("label"))
+                    ch = ch.next_sibling()
                 stream_params['metadata'].update({
                     "name": n,
                     "ch_count": stream.channel_count(),
                     "ch_format": stream.channel_format(),
-                    "srate": stream.nominal_srate()
+                    "srate": stream.nominal_srate(),
+                    "ch_labels": channelLabels
                 })
-                # ch = stream.desc().child("channels").child("channel")
-                # for ch_ix in range(stream.channel_count()):
-                #     print("  " + ch.child_value("label"))
-                #     ch = ch.next_sibling()
-
-                stream_params['inlet'] = pylsl.StreamInlet(stream)
                 stream_params['is_marker'] = stream.channel_format() in ["String", pylsl.cf_string]\
                                              and stream.nominal_srate() == pylsl.IRREGULAR_RATE
                 if not stream_params['is_marker']:

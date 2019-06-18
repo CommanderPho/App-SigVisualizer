@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1123</width>
-    <height>759</height>
+    <width>1299</width>
+    <height>800</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,6 +15,54 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
+    <property name="bottomMargin">
+     <number>12</number>
+    </property>
+    <item row="0" column="2">
+     <widget class="PaintWidget" name="widget" native="true">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="2">
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <property name="spacing">
+       <number>8</number>
+      </property>
+      <property name="sizeConstraint">
+       <enum>QLayout::SetFixedSize</enum>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QToolButton" name="btnShowDataStream">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>22</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>156</width>
+          <height>22</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Show Received Data Stream...</string>
+        </property>
+        <property name="toolButtonStyle">
+         <enum>Qt::ToolButtonTextOnly</enum>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
     <item row="0" column="0" rowspan="2">
      <widget class="QPushButton" name="toggleButton">
       <property name="sizePolicy">
@@ -23,10 +71,22 @@
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
+      <property name="minimumSize">
+       <size>
+        <width>20</width>
+        <height>698</height>
+       </size>
+      </property>
       <property name="maximumSize">
        <size>
         <width>20</width>
         <height>16777215</height>
+       </size>
+      </property>
+      <property name="baseSize">
+       <size>
+        <width>20</width>
+        <height>698</height>
        </size>
       </property>
       <property name="text">
@@ -57,6 +117,12 @@
     </item>
     <item row="1" column="1">
      <widget class="QPushButton" name="updateButton">
+      <property name="minimumSize">
+       <size>
+        <width>100</width>
+        <height>32</height>
+       </size>
+      </property>
       <property name="maximumSize">
        <size>
         <width>16777215</width>
@@ -68,45 +134,6 @@
       </property>
      </widget>
     </item>
-    <item row="0" column="2">
-     <widget class="PaintWidget" name="widget" native="true">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="2">
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <property name="sizeConstraint">
-       <enum>QLayout::SetFixedSize</enum>
-      </property>
-      <item>
-       <widget class="QToolButton" name="btnShowDataStream">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>22</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>156</width>
-          <height>22</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Show Received Data Stream...</string>
-        </property>
-        <property name="toolButtonStyle">
-         <enum>Qt::ToolButtonTextOnly</enum>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -114,12 +141,24 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1123</width>
+     <width>1299</width>
      <height>22</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuViews">
+    <property name="title">
+     <string>Views</string>
+    </property>
+    <addaction name="actionShow_Received_Data_Stream"/>
+   </widget>
+   <addaction name="menuViews"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionShow_Received_Data_Stream">
+   <property name="text">
+    <string>Show Received Data Stream...</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>

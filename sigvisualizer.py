@@ -52,7 +52,9 @@ class SigVisualizer(QMainWindow):
 
 			for m in range(s_meta["ch_count"]):
 				channel_item = QTreeWidgetItem(item)
-				channel_item.setText(0, 'Channel {}'.format(m+1))
+				# channel_item.setText(0, 'Channel {}'.format(m+1))
+				channel_item.setText(0, s_meta["ch_labels"][m])
+				
 				channel_item.setCheckState(0, Qt.Checked)
 
 			item.setExpanded(True if s_ix == default_idx else False)
@@ -88,6 +90,7 @@ class SecondWindow(QMainWindow):
     def __init__(self):
         super(SecondWindow, self).__init__()
         lbl = QLabel('Second Window', self)
+        
 
 # class NewDialog(QWidget):
 # 	def __init__(self, parent):
