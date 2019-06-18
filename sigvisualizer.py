@@ -54,7 +54,7 @@ class SigVisualizer(QMainWindow):
 				channel_item = QTreeWidgetItem(item)
 				# channel_item.setText(0, 'Channel {}'.format(m+1))
 				channel_item.setText(0, s_meta["ch_labels"][m])
-				
+				channel_item.setToolTip(0, 'Channel {}'.format(m+1))
 				channel_item.setCheckState(0, Qt.Checked)
 
 			item.setExpanded(True if s_ix == default_idx else False)
