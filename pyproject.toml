@@ -1,0 +1,11 @@
+[project]
+name = "sigvisualizer"
+version = "0.1.0"
+description = "SigVisualizer is a PyQt5 GUI application that visualizes electroencephalogram signals streamed from [__lab streaming layer__ (LSL)](https://github.com/sccn/labstreaminglayer 'LabStreamingLayer (LSL)') in real time."
+readme = "README.md"
+requires-python = ">=3.9.13"
+dependencies = [
+    "pylsl>=1.17.6",
+    "pyqt5>=5.15.7,<6",
+    "pyqt5-qt5==5.15.2",
+]
