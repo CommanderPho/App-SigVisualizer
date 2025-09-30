@@ -9,10 +9,10 @@ def main():
     print("Hello from sigvisualizer!")
     window = SigVisualizer()
     window.show()
-                                        
+    return window                                
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    main()
+    window: SigVisualizer = main()
     sys.exit(app.exec_())
 

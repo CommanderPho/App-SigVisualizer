@@ -25,10 +25,8 @@ class SigVisualizer(QMainWindow):
 		self.ui.toggleButton.setIconSize(QSize(30, 30))
 
 		self.ui.toggleButton.clicked.connect(self.toggle_panel)
-		self.ui.updateButton.clicked.connect(
-			self.ui.widget.dataTr.update_streams)
-		self.ui.widget.dataTr.updateStreamNames.connect(
-			self.update_metadata_widget)
+		self.ui.updateButton.clicked.connect(self.ui.widget.dataTr.update_streams)
+		self.ui.widget.dataTr.updateStreamNames.connect(self.update_metadata_widget)
 		self.panelHidden = False
 
 		self.ui.treeWidget.itemExpanded.connect(self.tree_item_expanded)
@@ -61,8 +59,12 @@ class SigVisualizer(QMainWindow):
 			self.ui.treeWidget.addTopLevelItem(item)
 
 		self.ui.treeWidget.setAnimated(True)
-		self.statusBar.showMessage(
-			"Sampling rate: {}Hz".format(metadata[default_idx]["srate"]))
+		if (default_idx is not None) and (default_idx in metadata):		
+			self.statusBar.showMessage("Sampling rate: {}Hz".format(metadata[default_idx]["srate"]))
+		else:
+			self.statusBar.showMessage("No valid sampling streams.")
+			
+
 
 	def toggle_panel(self):
 		if self.panelHidden:
