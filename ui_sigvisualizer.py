@@ -33,12 +33,17 @@ class Ui_MainWindow(object):
         self.horizontalLayout.setContentsMargins(0, -1, -1, -1)
         self.horizontalLayout.setSpacing(8)
         self.horizontalLayout.setObjectName("horizontalLayout")
+        self.btnUpdateActivePlots = QtWidgets.QPushButton(self.centralwidget)
+        self.btnUpdateActivePlots.setObjectName("btnUpdateActivePlots")
+        self.horizontalLayout.addWidget(self.btnUpdateActivePlots)
         self.btnShowDataStream = QtWidgets.QToolButton(self.centralwidget)
         self.btnShowDataStream.setMinimumSize(QtCore.QSize(0, 22))
         self.btnShowDataStream.setMaximumSize(QtCore.QSize(156, 22))
         self.btnShowDataStream.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
         self.btnShowDataStream.setObjectName("btnShowDataStream")
         self.horizontalLayout.addWidget(self.btnShowDataStream)
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.horizontalLayout.addItem(spacerItem)
         self.gridLayout.addLayout(self.horizontalLayout, 2, 2, 1, 1)
         self.treeWidget = QtWidgets.QTreeWidget(self.centralwidget)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
@@ -99,13 +104,15 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        self.btnUpdateActivePlots.setText(_translate("MainWindow", "Update Active Plots"))
         self.btnShowDataStream.setText(_translate("MainWindow", "Show Received Data Stream..."))
         self.updateButton.setText(_translate("MainWindow", "Update Streams"))
         self.chkEnableAutoUpdate.setText(_translate("MainWindow", "auto"))
         self.menuViews.setTitle(_translate("MainWindow", "Views"))
         self.actionShow_Received_Data_Stream.setText(_translate("MainWindow", "Show Received Data Stream..."))
 # from paintwidget import PaintWidget
-from pqtgraph_paintwidget import PaintWidget
+from pyqtgraph_paintwidget import PaintWidget
+
 
 if __name__ == "__main__":
     import sys

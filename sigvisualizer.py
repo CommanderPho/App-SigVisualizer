@@ -56,7 +56,13 @@ class SigVisualizer(QMainWindow):
 
 		self.ui.chkEnableAutoUpdate.clicked.connect(self.toggle_auto_refresh_streams)
 		self.toggle_auto_refresh_streams()
-		
+
+
+		self.ui.btnUpdateActivePlots.clicked.connect(self.perform_update_all_plots)
+
+
+
+	
 
 	def manual_refresh_streams(self):
 		self.run_update_streams()
@@ -106,9 +112,13 @@ class SigVisualizer(QMainWindow):
 				channel_item.setToolTip(0, f'Channel[{m+1}]')
 				channel_item.setCheckState(0, Qt.Checked)
 
-			item.setExpanded(True if s_ix == default_idx else False)
+			# item.setExpanded(True if s_ix == default_idx else False)
 			self.ui.treeWidget.addTopLevelItem(item)
 
+		# Expand all items recursively by default, without emitting selection changes
+		self.ui.treeWidget.blockSignals(True)
+		self.ui.treeWidget.expandAll()
+		self.ui.treeWidget.blockSignals(False)
 		self.ui.treeWidget.setAnimated(True)
 		if (default_idx is not None) and (default_idx in metadata):		
 			self.statusBar.showMessage("Sampling rate: {}Hz".format(metadata[default_idx]["srate"]))
@@ -116,6 +126,12 @@ class SigVisualizer(QMainWindow):
 			self.statusBar.showMessage("No valid sampling streams.")
 			
 
+
+	def perform_update_all_plots(self):
+		print(f'perform_update_all_plots()')
+		plot_widget = self.ui.widget
+		plot_widget.reset()
+		# plot_widget.get_data()
 			
 
 	def toggle_panel(self):
