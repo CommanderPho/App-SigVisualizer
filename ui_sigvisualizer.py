@@ -104,8 +104,8 @@ class Ui_MainWindow(object):
         self.chkEnableAutoUpdate.setText(_translate("MainWindow", "auto"))
         self.menuViews.setTitle(_translate("MainWindow", "Views"))
         self.actionShow_Received_Data_Stream.setText(_translate("MainWindow", "Show Received Data Stream..."))
-from paintwidget import PaintWidget
-
+# from paintwidget import PaintWidget
+from pqtgraph_paintwidget import PaintWidget
 
 if __name__ == "__main__":
     import sys

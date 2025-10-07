@@ -80,10 +80,13 @@ class SigVisualizer(QMainWindow):
 
 	def tree_item_expanded(self, widget_item):
 		name = widget_item.text(0)
-		for it_ix in range(self.ui.treeWidget.topLevelItemCount()):
-			item = self.ui.treeWidget.topLevelItem(it_ix)
-			if item.text(0) != name:
-				item.setExpanded(False)
+		enable_only_one_stream_expanded: bool = False
+		if enable_only_one_stream_expanded:
+			for it_ix in range(self.ui.treeWidget.topLevelItemCount()):
+				item = self.ui.treeWidget.topLevelItem(it_ix)
+				if item.text(0) != name:
+					item.setExpanded(False)
+
 		self.stream_expanded.emit(name)
 
 
@@ -95,8 +98,12 @@ class SigVisualizer(QMainWindow):
 			for m in range(s_meta["ch_count"]):
 				channel_item = QTreeWidgetItem(item)
 				# channel_item.setText(0, 'Channel {}'.format(m+1))
-				channel_item.setText(0, s_meta["ch_labels"][m])
-				channel_item.setToolTip(0, 'Channel {}'.format(m+1))
+				channel_name: str = s_meta["ch_labels"][m]
+				if not channel_name:
+					channel_name = f'Ch[{m}]'
+
+				channel_item.setText(0, channel_name)
+				channel_item.setToolTip(0, f'Channel[{m+1}]')
 				channel_item.setCheckState(0, Qt.Checked)
 
 			item.setExpanded(True if s_ix == default_idx else False)
