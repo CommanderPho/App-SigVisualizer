@@ -106,10 +106,17 @@ class PaintWidget(QWidget):
             # ======================================================================================================
             # Trend Removal and Scaling
             # ======================================================================================================
-            for samp_idx in range(n_samps):
-                for chan_idx in range(n_chans):
-                    self.dataBuffer[samp_idx][chan_idx] -= self.mean[chan_idx]
-                    self.dataBuffer[samp_idx][chan_idx] *= self.scaling[chan_idx]
+            try:
+                for samp_idx in range(n_samps):
+                    for chan_idx in range(n_chans):
+                        self.dataBuffer[samp_idx][chan_idx] -= self.mean[chan_idx]
+                        self.dataBuffer[samp_idx][chan_idx] *= self.scaling[chan_idx]
+            except (IndexError, ValueError) as e:
+                print(f'removing trend failed. Skipping.')
+                pass
+            except Exception as e:
+                raise
+
 
             # ======================================================================================================
             # Plot
