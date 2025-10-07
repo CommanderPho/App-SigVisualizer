@@ -3,9 +3,22 @@ import sys
 from PyQt5.QtCore import QSize, Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QStatusBar, QTreeWidgetItem, QLabel)
+from PyQt5.QtCore import QTimer
 
 from ui_sigvisualizer import Ui_MainWindow
 
+from PyQt5.QtCore import QTimer, QThreadPool, QRunnable, pyqtSlot
+# ...existing code...
+
+class UpdateStreamsTask(QRunnable):
+    def __init__(self, update_func):
+        super().__init__()
+        self.update_func = update_func
+
+    @pyqtSlot()
+    def run(self):
+        self.update_func()
+		
 
 class SigVisualizer(QMainWindow):
 	stream_expanded = pyqtSignal(str)
@@ -21,11 +34,14 @@ class SigVisualizer(QMainWindow):
 		self.statusBar = QStatusBar()
 		self.setStatusBar(self.statusBar)
 
+		self.threadpool = QThreadPool()
+
 		self.ui.toggleButton.setIcon(QIcon("icons/chevron_left.svg"))
 		self.ui.toggleButton.setIconSize(QSize(30, 30))
 
 		self.ui.toggleButton.clicked.connect(self.toggle_panel)
-		self.ui.updateButton.clicked.connect(self.ui.widget.dataTr.update_streams)
+		# self.ui.updateButton.clicked.connect(self.ui.widget.dataTr.update_streams)
+		self.ui.updateButton.clicked.connect(self.manual_refresh_streams)
 		self.ui.widget.dataTr.updateStreamNames.connect(self.update_metadata_widget)
 		self.panelHidden = False
 
@@ -35,6 +51,33 @@ class SigVisualizer(QMainWindow):
 		self.ui.btnShowDataStream.clicked.connect(self.toggle_data_stream_window)
 		self.dataStreamHidden = False
 
+		self.auto_refresh_timer = QTimer(self)
+		self.auto_refresh_timer.timeout.connect(self.ui.widget.dataTr.update_streams)
+
+		self.ui.chkEnableAutoUpdate.clicked.connect(self.toggle_auto_refresh_streams)
+		self.toggle_auto_refresh_streams()
+		
+
+	def manual_refresh_streams(self):
+		self.run_update_streams()
+		if self.ui.chkEnableAutoUpdate.isChecked():
+			self.auto_refresh_timer.start(2000) ## reset timer
+
+	def run_update_streams(self):
+		task = UpdateStreamsTask(self.ui.widget.dataTr.update_streams)
+		self.threadpool.start(task)
+
+	def toggle_auto_refresh_streams(self):
+		## toggle a timer to auto-refresh if should_auto_update
+		should_auto_update: bool = self.ui.chkEnableAutoUpdate.isChecked()
+		if should_auto_update:
+			self.auto_refresh_timer.timeout.disconnect()
+			self.auto_refresh_timer.timeout.connect(self.run_update_streams)
+			self.auto_refresh_timer.start(2000)  # refresh every 2 seconds
+		else:
+			self.auto_refresh_timer.stop()
+			
+
 	def tree_item_expanded(self, widget_item):
 		name = widget_item.text(0)
 		for it_ix in range(self.ui.treeWidget.topLevelItemCount()):
@@ -42,6 +85,7 @@ class SigVisualizer(QMainWindow):
 			if item.text(0) != name:
 				item.setExpanded(False)
 		self.stream_expanded.emit(name)
+
 
 	def update_metadata_widget(self, metadata, default_idx):
 		for s_ix, s_meta in enumerate(metadata):
@@ -65,6 +109,7 @@ class SigVisualizer(QMainWindow):
 			self.statusBar.showMessage("No valid sampling streams.")
 			
 
+			
 
 	def toggle_panel(self):
 		if self.panelHidden:
@@ -79,6 +124,7 @@ class SigVisualizer(QMainWindow):
 			self.ui.updateButton.hide()
 			self.ui.toggleButton.setIcon(QIcon("icons/chevron_right.svg"))
 			self.ui.toggleButton.setIconSize(QSize(30, 30))
+
 
 	def toggle_data_stream_window(self):
 		# Show/Hide the raw data stream

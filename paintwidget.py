@@ -1,5 +1,6 @@
+from copy import deepcopy
 from datathread import DataThread
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QPointF, QPoint, QLine, QLineF
 from PyQt5.QtGui import QPalette, QPainter, QPen
 from PyQt5.QtWidgets import QWidget
 import math
@@ -42,7 +43,7 @@ class PaintWidget(QWidget):
                 self.scaling = [1 for _ in range(len(sig_buffer[0]))]
             if self.chunk_idx == 0:
                 self.t0 = sig_ts[0]
-            self.dataBuffer = copy.deepcopy(sig_buffer)
+            self.dataBuffer = deepcopy(sig_buffer)
             px_per_chunk = self.width() / self.dataTr.chunksPerScreen
             update_x0 = self.chunk_idx * px_per_chunk
             update_width = px_per_chunk
@@ -119,17 +120,15 @@ class PaintWidget(QWidget):
                 chan_offset = (ch_idx + 0.5) * self.channelHeight
                 if self.lastY:
                     if not math.isnan(self.lastY[ch_idx]) and not math.isnan(self.dataBuffer[0][ch_idx]):
-                        painter.drawLine(x0 - self.px_per_samp,
-                                         -self.lastY[ch_idx] + chan_offset,
-                                         x0,
-                                         -self.dataBuffer[0][ch_idx] + chan_offset)
+                        painter.drawLine(QPointF((x0 - self.px_per_samp),
+                                         (-self.lastY[ch_idx] + chan_offset)),
+                                        QPointF(x0,
+                                         (-self.dataBuffer[0][ch_idx] + chan_offset)))
 
                 for m in range(n_samps - 1):
                     if not math.isnan(self.dataBuffer[m][ch_idx]) and not math.isnan(self.dataBuffer[m+1][ch_idx]):
-                        painter.drawLine(x0 + m * self.px_per_samp,
-                                         -self.dataBuffer[m][ch_idx] + chan_offset,
-                                         x0 + (m + 1) * self.px_per_samp,
-                                         -self.dataBuffer[m+1][ch_idx] + chan_offset)
+                        painter.drawLine(QPointF((x0 + m * self.px_per_samp), (-self.dataBuffer[m][ch_idx] + chan_offset)),
+                                         QPointF((x0 + (m + 1) * self.px_per_samp),  (-self.dataBuffer[m+1][ch_idx] + chan_offset)))
 
             # Reset for next iteration
             self.chunk_idx = (self.chunk_idx + 1) % self.dataTr.chunksPerScreen  # For next iteration
