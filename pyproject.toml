@@ -8,4 +8,5 @@ dependencies = [
     "pylsl>=1.17.6",
     "pyqt5>=5.15.7,<6",
     "pyqt5-qt5==5.15.2",
+    "pyqtgraph>=0.13.7",
 ]
