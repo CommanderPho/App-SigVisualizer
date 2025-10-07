@@ -1,7 +1,9 @@
+import logging
 from PyQt5.QtCore import QThread, Qt, pyqtSignal
 import pylsl
 import copy
 
+logger = logging.getLogger("phohale.sigvisualizer.DataThread")
 
 class DataThread(QThread):
     updateStreamNames = pyqtSignal(list, int)
@@ -19,13 +21,18 @@ class DataThread(QThread):
         self.streams = []
         self.stream_params = []
         self.sig_strm_idx = -1
+        logger.info(f'DataThread initialized.')
 
     def handle_stream_expanded(self, name):
+        logger.info(f'DataThread handle_stream_expanded() started.')
         stream_names = [_['metadata']['name'] for _ in self.stream_params]
         self.sig_strm_idx = stream_names.index(name)
         self.changedStream.emit()
+        logger.info(f'DataThread handle_stream_expanded() finished.')
+
 
     def update_streams(self):
+        logger.info(f'DataThread update_streams() started.')
         if not self.streams:
             self.streams = pylsl.resolve_streams(wait_time=1.0)
             for k, stream in enumerate(self.streams):
@@ -35,7 +42,7 @@ class DataThread(QThread):
                 # Extended meta data using info object
                 info = stream_params['inlet'].info()
                 channelLabels = []
-                print("Getting channel names from stream metadata...")
+                logger.info("\tGetting channel names from stream metadata...")
                 ch = info.desc().child("channels").child("channel")
                 for ch_ix in range(info.channel_count()):
                     #print(ch.desc())
@@ -65,9 +72,12 @@ class DataThread(QThread):
 
             self.updateStreamNames.emit([_['metadata'] for _ in self.stream_params], self.sig_strm_idx)
             self.start()
+        logger.info(f'DataThread update_streams() finished.')
 
     def run(self):
+        logger.info(f'DataThread run() started.')
         if self.streams:
+            logger.info(f'DataThread run() started.')
             while True:
                 send_ts, send_data = [], []
                 if self.sig_strm_idx >= 0:
@@ -95,3 +105,6 @@ class DataThread(QThread):
 
                 if any([send_ts, send_mrk_ts]):
                     self.sendData.emit(send_ts, send_data, send_mrk_ts, send_mrk_data)
+        logger.info(f'DataThread run() finished.')
+
+        

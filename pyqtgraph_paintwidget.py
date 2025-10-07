@@ -1,4 +1,5 @@
 from copy import deepcopy
+import logging
 from datathread import DataThread
 from PyQt5.QtCore import Qt, QPointF, QPoint, QLine, QLineF
 from PyQt5.QtGui import QPalette, QPainter, QPen
@@ -7,6 +8,8 @@ import math
 
 CHANNEL_Y_FILL = 0.7  # How much of the per-channel vertical space is filled.  > 1 will overlap the lines.
 import pyqtgraph as pg
+
+logger = logging.getLogger("phohale.sigvisualizer.PaintWidget")
 
 class PaintWidget(pg.PlotWidget):
     def __init__(self, widget):
@@ -33,8 +36,11 @@ class PaintWidget(pg.PlotWidget):
         self.getPlotItem().setLabel('left', 'Channels')
         self.channel_labels = []
         self.last_x_range = None
+        logger.info(f'PaintWidget initialized')
+
 
     def reset(self):
+        logger.info(f'PaintWidget reset')
         self.chunk_idx = 0
         self.channelHeight = 0
         self.px_per_samp = 0
@@ -58,6 +64,8 @@ class PaintWidget(pg.PlotWidget):
     def get_data(self, sig_ts, sig_buffer, marker_ts, marker_buffer):
         """ updates self.curves and self.marker_scatter 
         """
+        logger.info(f'PaintWidget get_data(...) started.')
+
         # Defensive: check for valid buffer
         if not sig_buffer or not isinstance(sig_buffer, list) or not sig_buffer or not isinstance(sig_buffer[0], (list, tuple)):
             self.clear()
@@ -164,10 +172,11 @@ class PaintWidget(pg.PlotWidget):
             self.removeItem(self.marker_scatter)
             self.marker_scatter = None
 
-        print("repainting")
+
+        logger.info(f'PaintWidget repainting...')
         self.update()
         self.repaint()
-        
+        logger.info(f'PaintWidget get_data(...) finished.')
     
 
     def sizeHint(self):
@@ -177,78 +186,12 @@ class PaintWidget(pg.PlotWidget):
 
 
     def paintEvent(self, event):
-        painter = QPainter(self)
-        if self.dataBuffer is not None:
-            painter.setPen(QPen(Qt.blue))
+        # Delegate painting to PlotWidget so pyqtgraph items render correctly
+        super().paintEvent(event)
 
-            n_samps = len(self.dataBuffer)
-            n_chans = len(self.dataBuffer[0])
+        logger.info(f'PaintWidget paintEvent(...) finished.')
 
-            self.channelHeight = self.height() / n_chans
-            self.px_per_samp = self.width() / self.dataTr.chunksPerScreen / n_samps
-
-            # ======================================================================================================
-            # Calculate Trend and Scaling
-            # ======================================================================================================
-            if self.chunk_idx == 0 or not self.mean:
-                for chan_idx in range(n_chans):
-                    samps_for_chan = [frame[chan_idx] for frame in self.dataBuffer]
-                    self.mean[chan_idx] = sum(samps_for_chan) / len(samps_for_chan)
-
-                    for m in range(len(samps_for_chan)):
-                        samps_for_chan[m] -= self.mean[chan_idx]
-
-                    data_range = (max(samps_for_chan) - min(samps_for_chan) + 0.0000000000001)
-                    self.scaling[chan_idx] = self.channelHeight * CHANNEL_Y_FILL / data_range
-
-            # ======================================================================================================
-            # Trend Removal and Scaling
-            # ======================================================================================================
-            try:
-                for samp_idx in range(n_samps):
-                    for chan_idx in range(n_chans):
-                        self.dataBuffer[samp_idx][chan_idx] -= self.mean[chan_idx]
-                        self.dataBuffer[samp_idx][chan_idx] *= self.scaling[chan_idx]
-            except (IndexError, ValueError) as e:
-                print(f'removing trend failed. Skipping.')
-                pass
-            except Exception as e:
-                raise
-
-
-            # ======================================================================================================
-            # Plot
-            # ======================================================================================================
-            px_per_chunk = self.width() / self.dataTr.chunksPerScreen
-            x0 = self.chunk_idx * px_per_chunk
-            for ch_idx in range(n_chans):
-                chan_offset = (ch_idx + 0.5) * self.channelHeight
-                if self.lastY:
-                    if not math.isnan(self.lastY[ch_idx]) and not math.isnan(self.dataBuffer[0][ch_idx]):
-                        painter.drawLine(QPointF((x0 - self.px_per_samp),
-                                         (-self.lastY[ch_idx] + chan_offset)),
-                                        QPointF(x0,
-                                         (-self.dataBuffer[0][ch_idx] + chan_offset)))
-
-                for m in range(n_samps - 1):
-                    if not math.isnan(self.dataBuffer[m][ch_idx]) and not math.isnan(self.dataBuffer[m+1][ch_idx]):
-                        painter.drawLine(QPointF((x0 + m * self.px_per_samp), (-self.dataBuffer[m][ch_idx] + chan_offset)),
-                                         QPointF((x0 + (m + 1) * self.px_per_samp),  (-self.dataBuffer[m+1][ch_idx] + chan_offset)))
-
-            # Reset for next iteration
-            self.chunk_idx = (self.chunk_idx + 1) % self.dataTr.chunksPerScreen  # For next iteration
-            self.lastY = self.dataBuffer[-1]
-            self.dataBuffer = None
-
-        if self.markerBuffer is not None:
-            painter.setPen(QPen(Qt.red))
-            for px, mrk in self.markerBuffer:
-                painter.drawLine(px, 0, px, self.height())
-                painter.drawText(px - 2 * self.px_per_samp, 0.95 * self.height(), mrk)
-            self.markerBuffer = None
-
-
-
+        
 # class PaintWidget(QWidget):
 
 #     def __init__(self, widget):

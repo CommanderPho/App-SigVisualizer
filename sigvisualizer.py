@@ -1,5 +1,5 @@
 import sys
-
+import logging
 from PyQt5.QtCore import QSize, Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QStatusBar, QTreeWidgetItem, QLabel)
@@ -10,6 +10,10 @@ from ui_sigvisualizer import Ui_MainWindow
 from PyQt5.QtCore import QTimer, QThreadPool, QRunnable, pyqtSlot
 # ...existing code...
 
+
+logger = logging.getLogger('phohale.sigvisualizer')
+
+
 class UpdateStreamsTask(QRunnable):
     def __init__(self, update_func):
         super().__init__()
@@ -17,7 +21,9 @@ class UpdateStreamsTask(QRunnable):
 
     @pyqtSlot()
     def run(self):
+        logger.info(f'UpdateStreamsTask run() started.')
         self.update_func()
+        logger.info(f'UpdateStreamsTask run() finished.')
 		
 
 class SigVisualizer(QMainWindow):
@@ -25,6 +31,8 @@ class SigVisualizer(QMainWindow):
 
 	def __init__(self):
 		super().__init__()
+		logger.info(f'SigVisualizer initialized.')
+		
 		self.ui = Ui_MainWindow()
 		self.ui.setupUi(self)
 		self.setWindowTitle('Real Time Signal Visualizer')
@@ -70,10 +78,12 @@ class SigVisualizer(QMainWindow):
 			self.auto_refresh_timer.start(2000) ## reset timer
 
 	def run_update_streams(self):
+		logger.info(f'SigVisualizer run_update_streams() started.')
 		task = UpdateStreamsTask(self.ui.widget.dataTr.update_streams)
 		self.threadpool.start(task)
 
 	def toggle_auto_refresh_streams(self):
+		logger.info(f'SigVisualizer toggle_auto_refresh_streams() started.')
 		## toggle a timer to auto-refresh if should_auto_update
 		should_auto_update: bool = self.ui.chkEnableAutoUpdate.isChecked()
 		if should_auto_update:
@@ -85,6 +95,7 @@ class SigVisualizer(QMainWindow):
 			
 
 	def tree_item_expanded(self, widget_item):
+		logger.info(f'SigVisualizer tree_item_expanded() started.')
 		name = widget_item.text(0)
 		enable_only_one_stream_expanded: bool = False
 		if enable_only_one_stream_expanded:
@@ -97,6 +108,7 @@ class SigVisualizer(QMainWindow):
 
 
 	def update_metadata_widget(self, metadata, default_idx):
+		logger.info(f'SigVisualizer update_metadata_widget() started.')
 		for s_ix, s_meta in enumerate(metadata):
 			item = QTreeWidgetItem(self.ui.treeWidget)
 			item.setText(0, s_meta["name"])
@@ -128,13 +140,17 @@ class SigVisualizer(QMainWindow):
 
 
 	def perform_update_all_plots(self):
-		print(f'perform_update_all_plots()')
+		logger.info(f'SigVisualizer perform_update_all_plots() started.')
 		plot_widget = self.ui.widget
 		plot_widget.reset()
+		plot_widget.dataTr.update_streams()
+		# plot_widget.get_data(sig_ts=self.ui.widget.dataTr.sig_ts, sig_buffer=self.ui.widget.dataTr.sig_buffer, marker_ts=self.ui.widget.dataTr.marker_ts, marker_buffer=self.ui.widget.dataTr.marker_buffer)
+		logger.info(f'SigVisualizer perform_update_all_plots() finished.')
 		# plot_widget.get_data()
 			
 
 	def toggle_panel(self):
+		logger.info(f'SigVisualizer toggle_panel() started.')
 		if self.panelHidden:
 			self.panelHidden = False
 			self.ui.treeWidget.show()
@@ -150,6 +166,7 @@ class SigVisualizer(QMainWindow):
 
 
 	def toggle_data_stream_window(self):
+		logger.info(f'SigVisualizer toggle_data_stream_window() started.')
 		# Show/Hide the raw data stream
 		# self.ui.nd = NewDialog(self)
 		# self.ui.nd.show()
@@ -160,6 +177,7 @@ class SigVisualizer(QMainWindow):
 class SecondWindow(QMainWindow):
     def __init__(self):
         super(SecondWindow, self).__init__()
+        logger.info(f'SecondWindow initialized.')
         lbl = QLabel('Second Window', self)
         
 
