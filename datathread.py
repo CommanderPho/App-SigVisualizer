@@ -7,7 +7,7 @@ logger = logging.getLogger("phohale.sigvisualizer.DataThread")
 
 class DataThread(QThread):
     updateStreamNames = pyqtSignal(list, int) ## emitted when the stream names are updated
-    sendData = pyqtSignal(list, list, list, list) ## emitted when the data is updated
+    sendData = pyqtSignal(str, list, list, list, list) ## emitted per-stream: (stream_name, sig_ts, sig_buffer, marker_ts, marker_buffer)
     changedStream = pyqtSignal() ## emitted when the stream selection is changed. Based off of the idea that only one stream is selected at a time.
     
     def_stream_parms = {'chunk_idx': 0, 'metadata': {}, 'srate': None, 'chunkSize': None,
@@ -84,32 +84,38 @@ class DataThread(QThread):
         if self.streams:
             logger.info(f'DataThread run() started.')
             while self._running:
-                send_ts, send_data = [], []
-                if self.sig_strm_idx >= 0:
-                    params = self.stream_params[self.sig_strm_idx]
-                    inlet = params['inlet']
-                    pull_kwargs = {'timeout': 1}
-                    if params['chunkSize']:
-                        pull_kwargs['max_samples'] = params['chunkSize']
-                    send_data, send_ts = inlet.pull_chunk(**pull_kwargs) ## actually get the data
-                    if send_ts and params['downSampling']:
-                        for m in range(round(params['chunkSize'] / params['downSamplingFactor'])):
-                            end_idx = min((m + 1) * params['downSamplingFactor'], len(send_data))
-                            for ch_idx in range(int(self.streams[self.sig_strm_idx].channel_count())):
-                                buf = [send_data[n][ch_idx] for n in range(m * params['downSamplingFactor'], end_idx)]
-                                params['downSamplingBuffer'][m][ch_idx] = sum(buf) / len(buf)
-                        send_data = params['downSamplingBuffer']
+                # Aggregate markers once per loop; reuse for all numeric streams
                 send_mrk_ts, send_mrk_data = [], []
                 is_marker = [_['is_marker'] for _ in self.stream_params]
                 if any(is_marker):
                     for stream_ix, params in enumerate(self.stream_params):
                         if is_marker[stream_ix]:
                             d, ts = params['inlet'].pull_chunk()
-                            send_mrk_data.extend(d)
-                            send_mrk_ts.extend(ts)
+                            if ts:
+                                send_mrk_data.extend(d)
+                                send_mrk_ts.extend(ts)
 
-                if any([send_ts, send_mrk_ts]):
-                    self.sendData.emit(send_ts, send_data, send_mrk_ts, send_mrk_data) ## emit the self.sendData signal
+                # Pull chunks for each non-marker stream and emit individually
+                for stream_ix, params in enumerate(self.stream_params):
+                    if params.get('is_marker'):
+                        continue
+                    inlet = params['inlet']
+                    pull_kwargs = {'timeout': 1}
+                    if params.get('chunkSize'):
+                        pull_kwargs['max_samples'] = params['chunkSize']
+                    sig_data, sig_ts = inlet.pull_chunk(**pull_kwargs)
+                    if sig_ts and params.get('downSampling'):
+                        # Downsample by simple mean over contiguous blocks
+                        for m in range(round(params['chunkSize'] / params['downSamplingFactor'])):
+                            end_idx = min((m + 1) * params['downSamplingFactor'], len(sig_data))
+                            for ch_idx in range(int(self.streams[stream_ix].channel_count())):
+                                buf = [sig_data[n][ch_idx] for n in range(m * params['downSamplingFactor'], end_idx)]
+                                params['downSamplingBuffer'][m][ch_idx] = sum(buf) / len(buf)
+                        sig_data = params['downSamplingBuffer']
+
+                    if sig_ts or send_mrk_ts:
+                        stream_name = params['metadata'].get('name') or f'stream_{stream_ix}'
+                        self.sendData.emit(stream_name, sig_ts, sig_data, send_mrk_ts, send_mrk_data)
 
         logger.info(f'DataThread run() finished.')
 

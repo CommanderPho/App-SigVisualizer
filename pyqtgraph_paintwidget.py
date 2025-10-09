@@ -127,20 +127,13 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
 
 
 
-    def get_data(self, sig_ts, sig_buffer, marker_ts, marker_buffer):
+    def get_data(self, stream_name, sig_ts, sig_buffer, marker_ts, marker_buffer):
         """Update per-stream plot for the active signal stream with a scrolling window.
         Maintains a per-stream history buffer and updates curves via setData.
         """
         logger.info(f'MultiStreamPlotManagingWidget get_data(...) started.')
-
-        # Identify active stream name (current single-stream driver)
-        active_stream_name = None
-        try:
-            if hasattr(self.dataTr, 'stream_params') and self.dataTr.stream_params and self.dataTr.sig_strm_idx >= 0:
-                active_stream_name = self.dataTr.stream_params[self.dataTr.sig_strm_idx]['metadata'].get('name')
-        except Exception:
-            active_stream_name = None
-
+        
+        active_stream_name = stream_name
         if not active_stream_name or active_stream_name not in self.stream_plots:
             return
 

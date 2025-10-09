@@ -130,10 +130,11 @@ class SigVisualizer(QMainWindow):
 			item = QTreeWidgetItem(self.ui.treeWidget)
 			item.setText(0, s_meta["name"])
 
+			# Defensive: labels list can be shorter than ch_count
+			labels = s_meta.get("ch_labels") or []
 			for m in range(s_meta["ch_count"]):
 				channel_item = QTreeWidgetItem(item)
-				# channel_item.setText(0, 'Channel {}'.format(m+1))
-				channel_name: str = s_meta["ch_labels"][m]
+				channel_name: str = labels[m] if m < len(labels) else ""
 				if not channel_name:
 					channel_name = f'Ch[{m}]'
 
