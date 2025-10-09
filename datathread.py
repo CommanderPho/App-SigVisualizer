@@ -6,10 +6,10 @@ import copy
 logger = logging.getLogger("phohale.sigvisualizer.DataThread")
 
 class DataThread(QThread):
-    updateStreamNames = pyqtSignal(list, int)
-    sendData = pyqtSignal(list, list, list, list)
-    changedStream = pyqtSignal()
-
+    updateStreamNames = pyqtSignal(list, int) ## emitted when the stream names are updated
+    sendData = pyqtSignal(list, list, list, list) ## emitted when the data is updated
+    changedStream = pyqtSignal() ## emitted when the stream selection is changed. Based off of the idea that only one stream is selected at a time.
+    
     def_stream_parms = {'chunk_idx': 0, 'metadata': {}, 'srate': None, 'chunkSize': None,
                         'downSampling': None, 'downSamplingFactor': None, 'downSamplingBuffer': None,
                         'inlet': None, 'stream_idx': None, 'is_marker': False}
@@ -20,14 +20,15 @@ class DataThread(QThread):
         self.seconds_per_screen = 2  # Number of seconds per sweep
         self.streams = []
         self.stream_params = []
-        self.sig_strm_idx = -1
+        self.sig_strm_idx = -1 ## the index of the selected stream -- TODO 2025-10-09 - replace so that it works with multiple streams
         logger.info(f'DataThread initialized.')
 
     def handle_stream_expanded(self, name):
         logger.info(f'DataThread handle_stream_expanded() started.')
         stream_names = [_['metadata']['name'] for _ in self.stream_params]
         self.sig_strm_idx = stream_names.index(name)
-        self.changedStream.emit()
+        self.changedStream.emit() ## emit the self.changedStream signal
+
         logger.info(f'DataThread handle_stream_expanded() finished.')
 
 
@@ -57,9 +58,9 @@ class DataThread(QThread):
                     "ch_labels": channelLabels
                 })
                 stream_params['is_marker'] = stream.channel_format() in ["String", pylsl.cf_string]\
-                                             and stream.nominal_srate() == pylsl.IRREGULAR_RATE
+                                             and (stream.nominal_srate() == pylsl.IRREGULAR_RATE)
                 if not stream_params['is_marker']:
-                    if self.sig_strm_idx < 0:
+                    if (self.sig_strm_idx < 0):
                         self.sig_strm_idx = k
                     srate = stream.nominal_srate()
                     stream_params['downSampling'] = srate > 1000
@@ -74,6 +75,8 @@ class DataThread(QThread):
             self.start()
         logger.info(f'DataThread update_streams() finished.')
 
+
+
     def run(self):
         logger.info(f'DataThread run() started.')
         if self.streams:
@@ -86,7 +89,7 @@ class DataThread(QThread):
                     pull_kwargs = {'timeout': 1}
                     if params['chunkSize']:
                         pull_kwargs['max_samples'] = params['chunkSize']
-                    send_data, send_ts = inlet.pull_chunk(**pull_kwargs)
+                    send_data, send_ts = inlet.pull_chunk(**pull_kwargs) ## actually get the data
                     if send_ts and params['downSampling']:
                         for m in range(round(params['chunkSize'] / params['downSamplingFactor'])):
                             end_idx = min((m + 1) * params['downSamplingFactor'], len(send_data))
@@ -104,7 +107,8 @@ class DataThread(QThread):
                             send_mrk_ts.extend(ts)
 
                 if any([send_ts, send_mrk_ts]):
-                    self.sendData.emit(send_ts, send_data, send_mrk_ts, send_mrk_data)
+                    self.sendData.emit(send_ts, send_data, send_mrk_ts, send_mrk_data) ## emit the self.sendData signal
+
         logger.info(f'DataThread run() finished.')
 
         

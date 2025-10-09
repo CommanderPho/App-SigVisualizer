@@ -7,7 +7,8 @@ import math
 CHANNEL_Y_FILL = 0.7  # How much of the per-channel vertical space is filled.  > 1 will overlap the lines.
 
 class ConsoleWidget(QWidget):
-
+    ## Not used anywhere
+    
     def __init__(self, widget):
         super().__init__()
         self.reset()

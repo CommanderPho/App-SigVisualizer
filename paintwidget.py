@@ -8,7 +8,8 @@ import math
 CHANNEL_Y_FILL = 0.7  # How much of the per-channel vertical space is filled.  > 1 will overlap the lines.
 
 class PaintWidget(QWidget):
-
+    """ QWidget subclass responsible for drawing the time series data to the screen."""
+    ## TODO 2025-10-09 - replace with pyqtgraph PlotWidget
     def __init__(self, widget):
         super().__init__()
         self.reset()

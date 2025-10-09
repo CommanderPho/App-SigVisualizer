@@ -27,6 +27,14 @@ class UpdateStreamsTask(QRunnable):
 		
 
 class SigVisualizer(QMainWindow):
+	""" Main app window for the stream/signal visualizer 
+	On the left side of the window is a tree widget that lists the available streams.
+	On the right side of the window is a plot widget that displays the time series data for the selected stream.
+	On the bottom of the window is a status bar that displays the sampling rate of the selected stream.
+	On the top of the window is a toolbar that allows the user to toggle the panel and update the streams.
+	
+	"""
+
 	stream_expanded = pyqtSignal(str)
 
 	def __init__(self):
@@ -51,6 +59,7 @@ class SigVisualizer(QMainWindow):
 		# self.ui.updateButton.clicked.connect(self.ui.widget.dataTr.update_streams)
 		self.ui.updateButton.clicked.connect(self.manual_refresh_streams)
 		self.ui.widget.dataTr.updateStreamNames.connect(self.update_metadata_widget)
+		self.ui.widget.dataTr.updateStreamNames.connect(self.ui.widget.update_metadata_widget)
 		self.panelHidden = False
 
 		self.ui.treeWidget.itemExpanded.connect(self.tree_item_expanded)
@@ -108,6 +117,13 @@ class SigVisualizer(QMainWindow):
 
 
 	def update_metadata_widget(self, metadata, default_idx):
+		""" called when the streams are changed (new streams/etc)
+		1. Need to update the tree widget with the new streams and channels 
+		2. Update the plotted graphs (building new ones/removing old ones if needed) so they can be displayed when updated date is received.
+
+		TODO 2025-10-09 - moving away from single stream selection (specified by default_idx) to being able to preview multiple streams simultaneously.
+
+		"""
 		logger.info(f'SigVisualizer update_metadata_widget() started.')
 		for s_ix, s_meta in enumerate(metadata):
 			item = QTreeWidgetItem(self.ui.treeWidget)
