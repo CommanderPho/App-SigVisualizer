@@ -79,10 +79,10 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
             except Exception:
                 pass
             a_plot_item.showGrid(x=True, y=True, alpha=0.3)
-            # a_plot_item.setMouseEnabled(x=False, y=False)
             a_plot_item.hideButtons()
-            a_plot_item.setMenuEnabled(False)
-            a_plot_item.setMouseEnabled(x=False, y=False)
+            # Enable built-in pyqtgraph context menu and interactions
+            a_plot_item.setMenuEnabled(True)
+            a_plot_item.setMouseEnabled(x=True, y=True)
             a_plot_item.setClipToView(True)
             a_plot_item.setDownsampling(mode='peak')
             a_plot_item.setAutoPan(y=False)
@@ -94,6 +94,9 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
                 pass
             a_plot_item.setLabel('bottom', 'Time', units='s')
             a_plot_item.setLabel('left', a_stream_name)
+
+            # Attach menu actions and y-range change tracking
+            self._attach_plot_interactions(a_stream_name, a_plot_item)
             
             ## Setup channels for the plot
             ch_labels = s_meta.get("ch_labels", []) or []
@@ -113,6 +116,8 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
                 'ts_history': [],
                 'raw_history': [],
                 'sample_counter': 0,
+                'y_manual': False,
+                'suppress_y_signal': False,
             }
         ## END for s_ix, s_meta in enumerate(metadata)...
         logger.info(f'\tMultiStreamPlotManagingWidget on_streams_updated() finished.')
@@ -300,11 +305,14 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
         ax = plot_item.getAxis('left')
         ax.setTicks([yticks])
 
-        # Fix Y range so channels remain stationary vertically
-        if y_offsets:
+        # Fix Y range by default so channels remain stationary vertically,
+        # but do not override if the user has manually adjusted Y.
+        if y_offsets and not state.get('y_manual'):
             y_min = -spacing * 0.5
             y_max = y_offsets[-1] + spacing * 0.5
+            state['suppress_y_signal'] = True
             plot_item.setYRange(y_min, y_max, padding=0.0)
+            state['suppress_y_signal'] = False
 
         # Lock x-range to the window
         plot_item.setXRange(0, x_max, padding=0.0)
@@ -340,6 +348,60 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
             self.stream_plot_channels[stream_name][channel_name]['is_enabled'] = bool(enabled)
             # No immediate redraw; will apply on next get_data()
     
+    def _attach_plot_interactions(self, stream_name: str, plot_item: pg.PlotItem) -> None:
+        """Enable context menu, add Reset Y-Scale action, and watch for manual Y-range changes."""
+        try:
+            plot_item.setMenuEnabled(True)
+            # Add custom Reset Y-Scale action into the PlotItem menu
+            menu = plot_item.getMenu()
+            if menu is not None:
+                reset_action = menu.addAction('Reset Y-Scale')
+                reset_action.triggered.connect(lambda: self.reset_y_scale(stream_name))
+        except Exception:
+            pass
+
+        # Track manual Y-range changes from user interactions
+        try:
+            vb = plot_item.getViewBox()
+            # Use a closure capturing the stream name
+            def on_y_changed(_vb, *args, **kwargs):
+                st = self.stream_graphics.get(stream_name)
+                if not st:
+                    return
+                if st.get('suppress_y_signal'):
+                    return
+                st['y_manual'] = True
+            # Connect to both generic and y-specific signals for robustness
+            vb.sigRangeChanged.connect(on_y_changed)
+            if hasattr(vb, 'sigYRangeChanged'):
+                vb.sigYRangeChanged.connect(on_y_changed)
+        except Exception:
+            pass
+
+    def reset_y_scale(self, stream_name: str) -> None:
+        """Restore default robust y stacking range for a specific stream and clear manual override."""
+        try:
+            plot_item = self.stream_plots.get(stream_name)
+            state = self.stream_graphics.get(stream_name)
+            if not plot_item or not state:
+                return
+
+            # Determine enabled channels for spacing
+            channel_map = self.stream_plot_channels.get(stream_name, {})
+            enabled = [(info['idx'], name) for name, info in channel_map.items() if info.get('is_enabled', True)]
+            enabled.sort(key=lambda t: t[0])
+            n_enabled = len(enabled) if enabled else (len(state.get('raw_history') or []))
+            spacing = CHANNEL_Y_FILL / max(n_enabled or 1, 1)
+
+            y_min = -spacing * 0.5
+            y_max = (max(n_enabled - 1, 0) * spacing) + spacing * 0.5
+
+            state['y_manual'] = False
+            state['suppress_y_signal'] = True
+            plot_item.setYRange(y_min, y_max, padding=0.0)
+            state['suppress_y_signal'] = False
+        except Exception:
+            pass
 
     def sizeHint(self):
         # Provide a reasonable default size
