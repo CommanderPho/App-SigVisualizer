@@ -111,8 +111,8 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
 
 
     def get_data(self, sig_ts, sig_buffer, marker_ts, marker_buffer):
-        """Update per-stream plot for the active signal stream.
-        Uses robust scaling and stacked channels; overlays markers.
+        """Update per-stream plot for the active signal stream with a scrolling window.
+        Maintains a per-stream history buffer and updates curves via setData.
         """
         logger.info(f'MultiStreamPlotManagingWidget get_data(...) started.')
 
@@ -127,41 +127,80 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
         if not active_stream_name or active_stream_name not in self.stream_plots:
             return
 
+        plot_item = self.stream_plots[active_stream_name]
+        state = self.stream_graphics.setdefault(active_stream_name, {
+            'curves': [], 'marker_scatter': None, 'means': [], 'scales': [], 'channel_labels': [], 'last_x_range': None,
+            'ts_history': [], 'raw_history': [], 'sample_counter': 0,
+        })
+
         # Defensive: check for valid buffer
         if not sig_buffer or not isinstance(sig_buffer, list) or not sig_buffer or not isinstance(sig_buffer[0], (list, tuple)):
-            # Clear graphics for the active stream
-            state = self.stream_graphics.get(active_stream_name, None)
-            plot_item = self.stream_plots[active_stream_name]
-            if state:
-                for c in state['curves']:
-                    try:
-                        plot_item.removeItem(c)
-                    except Exception:
-                        pass
-                state['curves'] = []
-                if state['marker_scatter']:
-                    try:
-                        plot_item.removeItem(state['marker_scatter'])
-                    except Exception:
-                        pass
-                    state['marker_scatter'] = None
+            # No new data; nothing to update
             return
 
         n_samples = len(sig_buffer)
         n_channels_total = len(sig_buffer[0]) if n_samples > 0 else 0
 
-        # Timestamps → x values
+        # Ensure history arrays sized to channel count
+        if not state['raw_history'] or len(state['raw_history']) != n_channels_total:
+            state['raw_history'] = [[] for _ in range(n_channels_total)]
+            state['means'] = [0 for _ in range(n_channels_total)]
+            state['scales'] = [1 for _ in range(n_channels_total)]
+            state['curves'] = []
+            # remove any existing curves if channel count changed
+            for c in list(plot_item.listDataItems()):
+                try:
+                    plot_item.removeItem(c)
+                except Exception:
+                    pass
+
+        # Append timestamps (or synthetic indices)
+        seconds_per_screen = getattr(self.dataTr, 'seconds_per_screen', 2)
         if not sig_ts or len(sig_ts) != n_samples:
-            x = list(range(n_samples))
+            # synthesize monotonically increasing indices as time base
+            base = state['sample_counter']
+            new_ts = [base + i for i in range(n_samples)]
+            state['sample_counter'] = base + n_samples
             time_mode = False
         else:
-            x = [t - sig_ts[0] for t in sig_ts]
+            new_ts = list(sig_ts)
             time_mode = True
+        state['ts_history'].extend(new_ts)
+
+        # Append raw channel data
+        for ch in range(n_channels_total):
+            state['raw_history'][ch].extend([row[ch] for row in sig_buffer])
+
+        # Trim history to time window
+        if state['ts_history']:
+            last_ts = state['ts_history'][-1]
+            cutoff = (last_ts - seconds_per_screen) if time_mode else max(0, state['sample_counter'] - int(seconds_per_screen * 1000))
+            # Find first index >= cutoff
+            start_idx = 0
+            for i, t in enumerate(state['ts_history']):
+                if t >= cutoff:
+                    start_idx = i
+                    break
+            if start_idx > 0:
+                state['ts_history'] = state['ts_history'][start_idx:]
+                for ch in range(n_channels_total):
+                    state['raw_history'][ch] = state['raw_history'][ch][start_idx:]
+
+        # Build x in window [0, seconds_per_screen]
+        if state['ts_history']:
+            t0 = state['ts_history'][0]
+            if time_mode:
+                x = [t - t0 for t in state['ts_history']]
+                x_max = seconds_per_screen
+            else:
+                # sample index base; map to [0, len-1]
+                x = [i for i in range(len(state['ts_history']))]
+                x_max = len(x) if len(x) > 0 else 1
+        else:
+            x = []
+            x_max = seconds_per_screen if time_mode else 1
 
         # Resolve channel labels and enabled indices for the active stream
-        state = self.stream_graphics.setdefault(active_stream_name, {
-            'curves': [], 'marker_scatter': None, 'means': [], 'scales': [], 'channel_labels': [], 'last_x_range': None,
-        })
         if not state['channel_labels']:
             try:
                 ch_labels = self.dataTr.stream_params[self.dataTr.sig_strm_idx]['metadata'].get('ch_labels', [])
@@ -171,7 +210,6 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
 
         channel_map = self.stream_plot_channels.get(active_stream_name, {})
         enabled = [(info['idx'], name) for name, info in channel_map.items() if info.get('is_enabled', True)]
-        # Sort by channel index to keep order stable
         enabled.sort(key=lambda t: t[0])
         enabled_indices = [idx for idx, _ in enabled]
         enabled_labels = [name for _, name in enabled]
@@ -180,47 +218,51 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
         spacing = CHANNEL_Y_FILL / max(n_enabled or 1, 1)
         y_offsets = [i * spacing for i in range(n_enabled or n_channels_total)]
 
-        # Ensure means/scales sized to total channel count
-        if not state['means'] or len(state['means']) != n_channels_total:
-            state['means'] = [0 for _ in range(n_channels_total)]
-        if not state['scales'] or len(state['scales']) != n_channels_total:
-            state['scales'] = [1 for _ in range(n_channels_total)]
-
-        # Calculate robust stats per channel (over current chunk)
+        # Recompute robust stats over current visible window
         for ch in range(n_channels_total):
-            y = [row[ch] for row in sig_buffer]
-            if y:
-                sy = sorted(y)
+            ywin = state['raw_history'][ch]
+            if ywin:
+                sy = sorted(ywin)
                 median = sy[len(sy)//2]
-                iqr = (sy[int(0.75*len(sy))] - sy[int(0.25*len(sy))]) if len(sy) > 3 else (max(y)-min(y) if max(y)!=min(y) else 1)
+                iqr = (sy[int(0.75*len(sy))] - sy[int(0.25*len(sy))]) if len(sy) > 3 else (max(ywin)-min(ywin) if max(ywin)!=min(ywin) else 1)
                 state['means'][ch] = median
                 state['scales'][ch] = iqr if iqr != 0 else 1
 
-        # Remove old curves from the active plot
-        plot_item = self.stream_plots[active_stream_name]
-        for c in state['curves']:
-            try:
-                plot_item.removeItem(c)
-            except Exception:
-                pass
-        state['curves'] = []
+        # Ensure curves exist and setData for enabled channels
+        need_rebuild = (len(state['curves']) != (len(enabled_indices) if enabled_indices else n_channels_total))
+        if need_rebuild:
+            for c in state['curves']:
+                try:
+                    plot_item.removeItem(c)
+                except Exception:
+                    pass
+            state['curves'] = []
+            if enabled_indices:
+                for out_idx, ch in enumerate(enabled_indices):
+                    pen = pg.mkPen(color=pg.intColor(ch, hues=max(n_channels_total, 1), values=1, maxValue=200), width=1)
+                    curve = pg.PlotDataItem(pen=pen, antialias=True)
+                    plot_item.addItem(curve)
+                    state['curves'].append(curve)
+            else:
+                for ch in range(n_channels_total):
+                    pen = pg.mkPen(color=pg.intColor(ch, hues=max(n_channels_total, 1), values=1, maxValue=200), width=1)
+                    curve = pg.PlotDataItem(pen=pen, antialias=True)
+                    plot_item.addItem(curve)
+                    state['curves'].append(curve)
 
-        # Build curves for enabled channels in stacked fashion
+        # Update curve data
         if enabled_indices:
             for out_idx, ch in enumerate(enabled_indices):
-                y = [(((row[ch] - state['means'][ch]) / state['scales'][ch]) if state['scales'][ch] else row[ch]) + y_offsets[out_idx] for row in sig_buffer]
-                pen = pg.mkPen(color=pg.intColor(ch, hues=max(n_channels_total, 1), values=1, maxValue=200), width=1)
-                curve = pg.PlotCurveItem(x, y, pen=pen, antialias=True)
-                plot_item.addItem(curve)
-                state['curves'].append(curve)
+                if x:
+                    yraw = state['raw_history'][ch]
+                    ynorm = [(((v - state['means'][ch]) / state['scales'][ch]) if state['scales'][ch] else v) + y_offsets[out_idx] for v in yraw]
+                    state['curves'][out_idx].setData(x, ynorm)
         else:
-            # Fallback: render all channels
             for ch in range(n_channels_total):
-                y = [(((row[ch] - state['means'][ch]) / state['scales'][ch]) if state['scales'][ch] else row[ch]) + y_offsets[ch] for row in sig_buffer]
-                pen = pg.mkPen(color=pg.intColor(ch, hues=max(n_channels_total, 1), values=1, maxValue=200), width=1)
-                curve = pg.PlotCurveItem(x, y, pen=pen, antialias=True)
-                plot_item.addItem(curve)
-                state['curves'].append(curve)
+                if x:
+                    yraw = state['raw_history'][ch]
+                    ynorm = [(((v - state['means'][ch]) / state['scales'][ch]) if state['scales'][ch] else v) + y_offsets[ch] for v in yraw]
+                    state['curves'][ch].setData(x, ynorm)
 
         # Set y-axis ticks to channel labels or numbers
         if enabled_labels:
@@ -232,28 +274,22 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
         ax = plot_item.getAxis('left')
         ax.setTicks([yticks])
 
-        # Set x-axis range to fit the data
-        if x:
-            x_min, x_max = min(x), max(x)
-            if x_min == x_max:
-                x_max += 1
-            plot_item.setXRange(x_min, x_max, padding=0.01)
-            state['last_x_range'] = (x_min, x_max)
+        # Lock x-range to the window
+        plot_item.setXRange(0, x_max, padding=0.0)
+        state['last_x_range'] = (0, x_max)
 
-        # Plot markers as scatter points
+        # Plot markers as scatter points at top of stack
         if marker_ts and marker_buffer and (enabled_indices or n_channels_total > 0):
             marker_x, marker_y = [], []
             top = y_offsets[-1] + spacing*0.5 if y_offsets else 0
-            for ts, ms in zip(marker_ts, marker_buffer):
-                if time_mode:
-                    x_val = ts - sig_ts[0]
-                else:
-                    try:
-                        x_val = sig_ts.index(ts)
-                    except Exception:
-                        x_val = 0
-                marker_x.append(x_val)
-                marker_y.append(top)
+            if time_mode and state['ts_history']:
+                t0 = state['ts_history'][0]
+                for ts, ms in zip(marker_ts, marker_buffer):
+                    x_val = ts - t0
+                    if 0 <= x_val <= x_max:
+                        marker_x.append(x_val)
+                        marker_y.append(top)
+            # synthetic index mode: skip marker alignment unless we can map indices
             if state['marker_scatter']:
                 try:
                     plot_item.removeItem(state['marker_scatter'])
