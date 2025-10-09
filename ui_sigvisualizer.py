@@ -111,7 +111,7 @@ class Ui_MainWindow(object):
         self.menuViews.setTitle(_translate("MainWindow", "Views"))
         self.actionShow_Received_Data_Stream.setText(_translate("MainWindow", "Show Received Data Stream..."))
 # from paintwidget import PaintWidget
-from pyqtgraph_paintwidget import PaintWidget
+from pyqtgraph_paintwidget import MultiStreamPlotManagingWidget as PaintWidget
 
 
 if __name__ == "__main__":

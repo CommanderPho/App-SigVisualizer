@@ -59,10 +59,11 @@ class SigVisualizer(QMainWindow):
 		# self.ui.updateButton.clicked.connect(self.ui.widget.dataTr.update_streams)
 		self.ui.updateButton.clicked.connect(self.manual_refresh_streams)
 		self.ui.widget.dataTr.updateStreamNames.connect(self.update_metadata_widget)
-		self.ui.widget.dataTr.updateStreamNames.connect(self.ui.widget.update_metadata_widget)
+		self.ui.widget.dataTr.updateStreamNames.connect(self.ui.widget.on_streams_updated)
 		self.panelHidden = False
 
 		self.ui.treeWidget.itemExpanded.connect(self.tree_item_expanded)
+		self.ui.treeWidget.itemChanged.connect(self.tree_item_changed)
 		self.stream_expanded.connect(self.ui.widget.dataTr.handle_stream_expanded)
 
 		self.ui.btnShowDataStream.clicked.connect(self.toggle_data_stream_window)
@@ -164,6 +165,19 @@ class SigVisualizer(QMainWindow):
 		logger.info(f'SigVisualizer perform_update_all_plots() finished.')
 		# plot_widget.get_data()
 			
+
+	def tree_item_changed(self, item, column):
+		"""Toggle channel visibility in the plot when a channel checkbox changes."""
+		try:
+			parent = item.parent()
+			if parent is None:
+				return
+			stream_name = parent.text(0)
+			channel_name = item.text(0)
+			enabled = (item.checkState(0) == Qt.Checked)
+			self.ui.widget.set_channel_enabled(stream_name, channel_name, enabled)
+		except Exception as e:
+			logger.exception("tree_item_changed failed: %s", e)
 
 	def toggle_panel(self):
 		logger.info(f'SigVisualizer toggle_panel() started.')
