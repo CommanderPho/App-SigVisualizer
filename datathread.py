@@ -21,6 +21,7 @@ class DataThread(QThread):
         self.streams = []
         self.stream_params = []
         self.sig_strm_idx = -1 ## the index of the selected stream -- TODO 2025-10-09 - replace so that it works with multiple streams
+        self._running = False
         logger.info(f'DataThread initialized.')
 
     def handle_stream_expanded(self, name):
@@ -72,6 +73,7 @@ class DataThread(QThread):
                 self.stream_params.append(stream_params)
 
             self.updateStreamNames.emit([_['metadata'] for _ in self.stream_params], self.sig_strm_idx)
+            self._running = True
             self.start()
         logger.info(f'DataThread update_streams() finished.')
 
@@ -81,7 +83,7 @@ class DataThread(QThread):
         logger.info(f'DataThread run() started.')
         if self.streams:
             logger.info(f'DataThread run() started.')
-            while True:
+            while self._running:
                 send_ts, send_data = [], []
                 if self.sig_strm_idx >= 0:
                     params = self.stream_params[self.sig_strm_idx]
@@ -111,4 +113,10 @@ class DataThread(QThread):
 
         logger.info(f'DataThread run() finished.')
 
+    def stop(self):
+        """Cooperatively stop the thread's loop and wait for exit."""
+        try:
+            self._running = False
+        except Exception:
+            pass
         

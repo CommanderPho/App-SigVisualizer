@@ -73,7 +73,11 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
             self.stream_plots[a_stream_name] = a_plot_item
             self.stream_plot_channels[a_stream_name] = {} ## initialize per-stream channels
 
-            a_plot_item.setBackground('w')
+            # PlotItem has no setBackground; set the ViewBox background instead
+            try:
+                a_plot_item.getViewBox().setBackgroundColor('w')
+            except Exception:
+                pass
             a_plot_item.showGrid(x=True, y=True, alpha=0.3)
             # a_plot_item.setMouseEnabled(x=False, y=False)
             a_plot_item.hideButtons()
@@ -82,7 +86,12 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
             a_plot_item.setClipToView(True)
             a_plot_item.setDownsampling(mode='peak')
             a_plot_item.setAutoPan(y=False)
-            a_plot_item.setAutoVisible(y=True)
+            # Keep y positions stationary; disable auto-visible/auto-range on Y
+            a_plot_item.setAutoVisible(y=False)
+            try:
+                a_plot_item.getViewBox().enableAutoRange(axis=pg.ViewBox.YAxis, enable=False)
+            except Exception:
+                pass
             a_plot_item.setLabel('bottom', 'Time', units='s')
             a_plot_item.setLabel('left', a_stream_name)
             
@@ -101,6 +110,9 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
                 'scales': [],
                 'channel_labels': ch_labels,
                 'last_x_range': None,
+                'ts_history': [],
+                'raw_history': [],
+                'sample_counter': 0,
             }
         ## END for s_ix, s_meta in enumerate(metadata)...
         logger.info(f'\tMultiStreamPlotManagingWidget on_streams_updated() finished.')
@@ -128,10 +140,24 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
             return
 
         plot_item = self.stream_plots[active_stream_name]
-        state = self.stream_graphics.setdefault(active_stream_name, {
-            'curves': [], 'marker_scatter': None, 'means': [], 'scales': [], 'channel_labels': [], 'last_x_range': None,
-            'ts_history': [], 'raw_history': [], 'sample_counter': 0,
-        })
+        state = self.stream_graphics.get(active_stream_name)
+        if state is None:
+            state = {
+                'curves': [], 'marker_scatter': None, 'means': [], 'scales': [], 'channel_labels': [], 'last_x_range': None,
+                'ts_history': [], 'raw_history': [], 'sample_counter': 0,
+            }
+            self.stream_graphics[active_stream_name] = state
+        else:
+            # Upgrade state with any missing keys for backward compatibility
+            state.setdefault('curves', [])
+            state.setdefault('marker_scatter', None)
+            state.setdefault('means', [])
+            state.setdefault('scales', [])
+            state.setdefault('channel_labels', [])
+            state.setdefault('last_x_range', None)
+            state.setdefault('ts_history', [])
+            state.setdefault('raw_history', [])
+            state.setdefault('sample_counter', 0)
 
         # Defensive: check for valid buffer
         if not sig_buffer or not isinstance(sig_buffer, list) or not sig_buffer or not isinstance(sig_buffer[0], (list, tuple)):
@@ -273,6 +299,12 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
             yticks = [(y_offsets[i], str(i+1)) for i in range(len(y_offsets))]
         ax = plot_item.getAxis('left')
         ax.setTicks([yticks])
+
+        # Fix Y range so channels remain stationary vertically
+        if y_offsets:
+            y_min = -spacing * 0.5
+            y_max = y_offsets[-1] + spacing * 0.5
+            plot_item.setYRange(y_min, y_max, padding=0.0)
 
         # Lock x-range to the window
         plot_item.setXRange(0, x_max, padding=0.0)

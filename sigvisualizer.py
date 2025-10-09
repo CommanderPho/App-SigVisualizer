@@ -203,6 +203,16 @@ class SigVisualizer(QMainWindow):
 		self.secondWindow = SecondWindow()
 		self.secondWindow.show()
 
+	def closeEvent(self, event):
+		"""Ensure background data thread exits cleanly on window close."""
+		try:
+			if hasattr(self.ui.widget, 'dataTr') and self.ui.widget.dataTr.isRunning():
+				self.ui.widget.dataTr.stop()
+				self.ui.widget.dataTr.wait(1000)
+		except Exception:
+			pass
+		return super().closeEvent(event)
+
 
 class SecondWindow(QMainWindow):
     def __init__(self):
