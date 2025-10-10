@@ -118,6 +118,7 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
                 'sample_counter': 0,
                 'y_manual': False,
                 'suppress_y_signal': False,
+                'fit_to_band': False,
             }
         ## END for s_ix, s_meta in enumerate(metadata)...
         logger.info(f'\tMultiStreamPlotManagingWidget on_streams_updated() finished.')
@@ -248,7 +249,12 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
             if ywin:
                 sy = sorted(ywin)
                 median = sy[len(sy)//2]
-                iqr = (sy[int(0.75*len(sy))] - sy[int(0.25*len(sy))]) if len(sy) > 3 else (max(ywin)-min(ywin) if max(ywin)!=min(ywin) else 1)
+                if state.get('fit_to_band'):
+                    # Fit entire visible min..max into the band's height (approx spacing)
+                    yrng = max(ywin) - min(ywin)
+                    iqr = yrng if yrng != 0 else 1
+                else:
+                    iqr = (sy[int(0.75*len(sy))] - sy[int(0.25*len(sy))]) if len(sy) > 3 else (max(ywin)-min(ywin) if max(ywin)!=min(ywin) else 1)
                 state['means'][ch] = median
                 state['scales'][ch] = iqr if iqr != 0 else 1
 
@@ -279,13 +285,28 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
             for out_idx, ch in enumerate(enabled_indices):
                 if x:
                     yraw = state['raw_history'][ch]
-                    ynorm = [(((v - state['means'][ch]) / state['scales'][ch]) if state['scales'][ch] else v) + y_offsets[out_idx] for v in yraw]
+                    if state.get('fit_to_band'):
+                        # Scale to fill band: normalize min..max to [-0.5, 0.5] of band height
+                        ymin = min(yraw) if yraw else 0
+                        ymax = max(yraw) if yraw else 1
+                        yrng = (ymax - ymin) or 1
+                        ynorm = [(((v - (ymin + yrng/2)) / yrng) + 0) / 1.0 for v in yraw]
+                    else:
+                        ynorm = [(((v - state['means'][ch]) / state['scales'][ch]) if state['scales'][ch] else v) for v in yraw]
+                    ynorm = [v + y_offsets[out_idx] for v in ynorm]
                     state['curves'][out_idx].setData(x, ynorm)
         else:
             for ch in range(n_channels_total):
                 if x:
                     yraw = state['raw_history'][ch]
-                    ynorm = [(((v - state['means'][ch]) / state['scales'][ch]) if state['scales'][ch] else v) + y_offsets[ch] for v in yraw]
+                    if state.get('fit_to_band'):
+                        ymin = min(yraw) if yraw else 0
+                        ymax = max(yraw) if yraw else 1
+                        yrng = (ymax - ymin) or 1
+                        ynorm = [(((v - (ymin + yrng/2)) / yrng) + 0) / 1.0 for v in yraw]
+                    else:
+                        ynorm = [(((v - state['means'][ch]) / state['scales'][ch]) if state['scales'][ch] else v) for v in yraw]
+                    ynorm = [v + y_offsets[ch] for v in ynorm]
                     state['curves'][ch].setData(x, ynorm)
 
         # Set y-axis ticks to channel labels or numbers
@@ -350,6 +371,14 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
             if menu is not None:
                 reset_action = menu.addAction('Reset Y-Scale')
                 reset_action.triggered.connect(lambda: self.reset_y_scale(stream_name))
+                # Toggle per-channel fit-to-band scaling
+                def toggle_fit():
+                    st = self.stream_graphics.get(stream_name)
+                    if not st:
+                        return
+                    st['fit_to_band'] = not st.get('fit_to_band', False)
+                fit_action = menu.addAction('Toggle Fit Channels to Band')
+                fit_action.triggered.connect(toggle_fit)
         except Exception:
             pass
 
