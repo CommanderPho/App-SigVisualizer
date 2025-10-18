@@ -12,13 +12,15 @@ from PyQt5.QtCore import QTimer, QThreadPool, QRunnable, pyqtSlot
 
 
 logger = logging.getLogger('phohale.sigvisualizer')
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.WARNING)
+
 # logger.addHandler(logging.StreamHandler())
 # logger.addHandler(logging.FileHandler('sigvisualizer.log'))
 
 handlers = [logging.StreamHandler(), logging.FileHandler('sigvisualizer.log')]
 for handler in handlers:
-	handler.setLevel(logging.DEBUG)
+	handler.setLevel(logging.WARNING)
 	handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 	logger.addHandler(handler)
 	logger.info(f'Added handler {handler}')
@@ -151,7 +153,8 @@ class SigVisualizer(QMainWindow):
 
 	def on_stream_data_update(self, stream_name, sig_ts, sig_buffer, marker_stream_names, marker_ts, marker_buffer):
 		""" called every time any stream is updated during the main run loop to update the markers table. 
-		
+		Not used anymore
+
 		"""
 		# logger.info(f'SigVisualizer.on_stream_data_update(...) started.')
 

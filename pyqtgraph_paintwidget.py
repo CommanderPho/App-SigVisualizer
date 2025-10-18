@@ -64,7 +64,7 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
         # v = self.addViewBox(row=1, col=0, colspan=2)
         #         
         """
-        logger.info(f'MultiStreamPlotManagingWidget on_streams_updated() started.')
+        logger.debug(f'MultiStreamPlotManagingWidget on_streams_updated() started.')
         self.reset()
 
         for s_ix, s_meta in enumerate(metadata):
@@ -121,7 +121,7 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
                 'fit_to_band': False,
             }
         ## END for s_ix, s_meta in enumerate(metadata)...
-        logger.info(f'\tMultiStreamPlotManagingWidget on_streams_updated() finished.')
+        logger.debug(f'\tMultiStreamPlotManagingWidget on_streams_updated() finished.')
 
 
             
@@ -132,7 +132,7 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
         """Update per-stream plot for the active signal stream with a scrolling window.
         Maintains a per-stream history buffer and updates curves via setData.
         """
-        logger.info(f'MultiStreamPlotManagingWidget get_data(...) started.')
+        logger.debug(f'MultiStreamPlotManagingWidget get_data(...) started.')
         
         active_stream_name = stream_name
         if not active_stream_name or active_stream_name not in self.stream_plots:
@@ -363,7 +363,7 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
             self.stream_plot_channels[stream_name][channel_name]['is_enabled'] = bool(enabled)
             # No immediate redraw; will apply on next get_data()
     
-    
+
     def _attach_plot_interactions(self, stream_name: str, plot_item: pg.PlotItem) -> None:
         """Enable context menu, add Reset Y-Scale action, and watch for manual Y-range changes."""
         try:
