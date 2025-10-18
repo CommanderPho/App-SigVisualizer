@@ -215,7 +215,7 @@
        <attribute name="label">
         <string>Page Messages</string>
        </attribute>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
           <x>1</x>
@@ -278,7 +278,7 @@
             <bool>true</bool>
            </property>
            <property name="rowCount">
-            <number>2</number>
+            <number>4</number>
            </property>
            <property name="columnCount">
             <number>3</number>
@@ -301,6 +301,16 @@
            <row>
             <property name="text">
              <string>test_item</string>
+            </property>
+           </row>
+           <row>
+            <property name="text">
+             <string>test_item2</string>
+            </property>
+           </row>
+           <row>
+            <property name="text">
+             <string notr="true">test_footer_expanding_item</string>
             </property>
            </row>
            <row/>
@@ -344,8 +354,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>531</width>
-         <height>684</height>
+         <width>98</width>
+         <height>28</height>
         </rect>
        </property>
        <attribute name="label">

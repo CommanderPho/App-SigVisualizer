@@ -112,17 +112,17 @@ class SigVisualizer(QMainWindow):
 		# self.ui.tblViewMessages.itemSelectionChanged.connect(self.update_stream_table)
 
 
-		self.ui.widget.dataTr.sendData.connect(self.on_stream_data_update)
+		# self.ui.widget.dataTr.sendData.connect(self.on_stream_data_update) ## No longer needed
+		self.ui.widget.dataTr.sendMarkerData.connect(self.on_marker_data_update)
 
 		# self.sendData.emit(stream_name, sig_ts, sig_data, send_mrk_ts, send_mrk_data)
 
 
-	def add_right_sidebar_table_row(self, timestamp: str, stream: str, description: str):
+	def add_right_sidebar_table_row(self, stream: str, timestamp: str, description: str):
 		""" adds a new row to the right-sidebar table with the given values """
 
 		rowPosition = self.ui.tblViewMessages.rowCount()
-
-		currentRowCount = self.ui.tblViewMessages.rowCount() #necessary even when there are no rows in the table
+		# currentRowCount = self.ui.tblViewMessages.rowCount() #necessary even when there are no rows in the table
 		# self.ui.tblViewMessages.insertRow(currentRowCount, 0, QTableWidgetItem("Some text"))
 		self.ui.tblViewMessages.insertRow(rowPosition) ## add a new row at the end
 
@@ -149,23 +149,70 @@ class SigVisualizer(QMainWindow):
 
 
 
-	def on_stream_data_update(self, sig_ts, sig_buffer, marker_ts, marker_buffer, marker_stream_name):
+	def on_stream_data_update(self, stream_name, sig_ts, sig_buffer, marker_stream_names, marker_ts, marker_buffer):
 		""" called every time any stream is updated during the main run loop to update the markers table. 
 		
 		"""
-		logger.info(f'SigVisualizer.on_stream_data_update(...) started.')
+		# logger.info(f'SigVisualizer.on_stream_data_update(...) started.')
 
-		n_samples = len(marker_buffer)
-		n_channels = len(marker_buffer[0]) if n_samples > 0 else 0 ## should always be 1
+		# # Plot markers as table rows
+		# try:
+		# 	n_samples = len(marker_buffer) if marker_buffer is not None else 0
+		# 	n_channels = len(marker_buffer[0]) if (n_samples > 0 and isinstance(marker_buffer[0], (list, tuple))) else 0
+		# 	if marker_ts and marker_buffer and marker_stream_names:
+		# 		for m_stream, ts, ms in zip(marker_stream_names, marker_ts, marker_buffer):
+		# 			# Coerce values to strings
+		# 			try:
+		# 				ts_str = f"{float(ts):.3f}"
+		# 			except Exception:
+		# 				ts_str = str(ts)
+		# 			m_stream_str = str(m_stream)
+		# 			if isinstance(ms, (list, tuple)):
+		# 				desc = ",".join(map(str, ms))
+		# 			else:
+		# 				desc = str(ms)
+		# 			self.add_right_sidebar_table_row(stream=m_stream_str, timestamp=ts_str, description=desc)
+		# except Exception as e:
+		# 	logger.exception("on_stream_data_update failed to add marker rows: %s", e)
 
-		# Plot markers as scatter points
-		if marker_ts and marker_buffer and (n_channels > 0):
-			for ts, stream_name, ms in zip(marker_ts, marker_stream_name, marker_buffer):
-				self.add_right_sidebar_table_row(timestamp=ts, stream=stream_name, description=ms)
+		# logger.info(f'SigVisualizer scrolling table to bottom...')
+		# self.ui.tblViewMessages.scrollToBottom()
+		pass
+		# logger.info(f'SigVisualizer.on_stream_data_update(...) finished.')
+
+
+
+	def on_marker_data_update(self, marker_stream_names, marker_ts, marker_buffer):
+		""" called every time any marker is updated during the main run loop to update the markers table. 
+		
+		"""
+		logger.info(f'SigVisualizer.on_marker_data_update(...) started.')
+				# Plot markers as table rows
+		try:
+			n_samples = len(marker_buffer) if marker_buffer is not None else 0
+			# n_channels = len(marker_buffer[0]) if (n_samples > 0 and isinstance(marker_buffer[0], (list, tuple))) else 0
+			if marker_ts and marker_buffer and marker_stream_names:
+				for m_stream, ts, ms in zip(marker_stream_names, marker_ts, marker_buffer):
+					# Coerce values to strings
+					try:
+						ts_str = f"{float(ts):.3f}"
+					except Exception:
+						ts_str = str(ts)
+					m_stream_str = str(m_stream)
+					if isinstance(ms, (list, tuple)):
+						desc = ",".join(map(str, ms))
+					else:
+						desc = str(ms)
+					self.add_right_sidebar_table_row(stream=m_stream_str, timestamp=ts_str, description=desc)
+		except Exception as e:
+			logger.exception("on_marker_data_update failed to add marker rows: %s", e)
 
 		logger.info(f'SigVisualizer scrolling table to bottom...')
 		self.ui.tblViewMessages.scrollToBottom()
-		logger.info(f'SigVisualizer.on_stream_data_update(...) finished.')
+		logger.info(f'SigVisualizer.on_marker_data_update(...) finished.')
+		
+
+
 			
 
 	def manual_refresh_streams(self):

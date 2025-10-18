@@ -7,7 +7,11 @@ logger = logging.getLogger("phohale.sigvisualizer.DataThread")
 
 class DataThread(QThread):
     updateStreamNames = pyqtSignal(list, int) ## emitted when the stream names are updated
-    sendData = pyqtSignal(str, list, list, list, list, list) ## emitted per-stream: (stream_name, sig_ts, sig_buffer, marker_ts, marker_buffer, marker_stream_name)
+    # Standardized order: (stream_name, sig_ts, sig_buffer, marker_stream_names, marker_ts, marker_buffer)
+    sendData = pyqtSignal(str, list, list, list, list, list)
+    # sendSingleStreamData = pyqtSignal(str, list, list) # (stream_name: str, sig_ts: NDArray, sig_buffer: NDArray)
+    sendMarkerData = pyqtSignal(list, list, list) # (marker_stream_names: list, marker_ts: list, marker_buffer: list)
+    
     changedStream = pyqtSignal() ## emitted when the stream selection is changed. Based off of the idea that only one stream is selected at a time.
     
     def_stream_parms = {'chunk_idx': 0, 'metadata': {}, 'srate': None, 'chunkSize': None,
@@ -84,7 +88,7 @@ class DataThread(QThread):
             logger.info(f'DataThread run() started.')
             while self._running:
                 # Aggregate markers once per loop; reuse for all numeric streams
-                send_mrk_ts, send_mrk_data, send_mrk_stream_name = [], [], []
+                send_mrk_ts, send_mrk_data, send_mrk_stream_names = [], [], []
                 is_marker = [_['is_marker'] for _ in self.stream_params]
                 if any(is_marker):
                     for stream_ix, params in enumerate(self.stream_params):
@@ -94,7 +98,7 @@ class DataThread(QThread):
                             ## hitting this a lot, but ts and d are always empty
                             if ts:                                
                                 logger.info(f'\t marker stream [{stream_ix}] [{a_stream_name}] in .run(): {len(d)} samples, {len(ts)} timestamps.')
-                                send_mrk_stream_name.extend([a_stream_name] * len(d))
+                                send_mrk_stream_names.extend([a_stream_name] * len(d))
                                 send_mrk_data.extend(d)
                                 send_mrk_ts.extend(ts)
                     ## END for stream_ix, params in enumerate(self.stream_params)...
@@ -122,7 +126,20 @@ class DataThread(QThread):
 
                     if sig_ts or send_mrk_ts:
                         stream_name = params['metadata'].get('name') or f'stream_{stream_ix}'
-                        self.sendData.emit(stream_name, sig_ts, sig_data, send_mrk_ts, send_mrk_data, send_mrk_stream_name)
+                        # Emit in standardized order
+                        # self.sendSingleStreamData.emit(stream_name, sig_ts, sig_data)
+                        self.sendData.emit(stream_name, sig_ts, sig_data, send_mrk_stream_names, send_mrk_ts, send_mrk_data)
+                        
+
+                ## END for stream_ix, params in enumerate(self.stream_params):...
+                ## only emit after all streams are aggregated:
+                # self.sendData.emit(stream_name, sig_ts, sig_data, send_mrk_stream_names, send_mrk_ts, send_mrk_data)
+
+                if send_mrk_ts:
+                    self.sendMarkerData.emit(send_mrk_stream_names, send_mrk_ts, send_mrk_data)
+
+            ## END while self._running:...
+
 
         logger.info(f'DataThread run() finished.')
 

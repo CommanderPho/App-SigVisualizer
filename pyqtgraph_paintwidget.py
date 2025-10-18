@@ -128,7 +128,7 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
 
 
 
-    def get_data(self, stream_name, sig_ts, sig_buffer, marker_ts, marker_buffer, marker_stream_name):
+    def get_data(self, stream_name, sig_ts, sig_buffer, marker_stream_names, marker_ts, marker_buffer):
         """Update per-stream plot for the active signal stream with a scrolling window.
         Maintains a per-stream history buffer and updates curves via setData.
         """
@@ -356,11 +356,13 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
 
         logger.info(f'MultiStreamPlotManagingWidget get_data(...) finished.')
 
+
     def set_channel_enabled(self, stream_name: str, channel_name: str, enabled: bool):
         """Toggle channel visibility for a given stream."""
         if stream_name in self.stream_plot_channels and channel_name in self.stream_plot_channels[stream_name]:
             self.stream_plot_channels[stream_name][channel_name]['is_enabled'] = bool(enabled)
             # No immediate redraw; will apply on next get_data()
+    
     
     def _attach_plot_interactions(self, stream_name: str, plot_item: pg.PlotItem) -> None:
         """Enable context menu, add Reset Y-Scale action, and watch for manual Y-range changes."""
@@ -484,7 +486,7 @@ class PaintWidget(pg.PlotWidget):
         self.repaint()
 
 
-    def get_data(self, sig_ts, sig_buffer, marker_ts, marker_buffer, marker_stream_name):
+    def get_data(self, stream_name, sig_ts, sig_buffer, marker_stream_names, marker_ts, marker_buffer):
         """ updates self.curves and self.marker_scatter 
         """
         logger.info(f'PaintWidget get_data(...) started.')
