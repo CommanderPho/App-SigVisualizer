@@ -128,7 +128,7 @@ class MultiStreamPlotManagingWidget(pg.GraphicsLayoutWidget):
 
 
 
-    def get_data(self, stream_name, sig_ts, sig_buffer, marker_ts, marker_buffer):
+    def get_data(self, stream_name, sig_ts, sig_buffer, marker_ts, marker_buffer, marker_stream_name):
         """Update per-stream plot for the active signal stream with a scrolling window.
         Maintains a per-stream history buffer and updates curves via setData.
         """
@@ -484,7 +484,7 @@ class PaintWidget(pg.PlotWidget):
         self.repaint()
 
 
-    def get_data(self, sig_ts, sig_buffer, marker_ts, marker_buffer):
+    def get_data(self, sig_ts, sig_buffer, marker_ts, marker_buffer, marker_stream_name):
         """ updates self.curves and self.marker_scatter 
         """
         logger.info(f'PaintWidget get_data(...) started.')

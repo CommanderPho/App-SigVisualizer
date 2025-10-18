@@ -2,7 +2,7 @@ import sys
 import logging
 from PyQt5.QtCore import QSize, Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QStatusBar, QTreeWidgetItem, QLabel)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QStatusBar, QTableWidgetItem, QTreeWidgetItem, QLabel)
 from PyQt5.QtCore import QTimer
 
 from ui_sigvisualizer import Ui_MainWindow
@@ -12,6 +12,19 @@ from PyQt5.QtCore import QTimer, QThreadPool, QRunnable, pyqtSlot
 
 
 logger = logging.getLogger('phohale.sigvisualizer')
+logger.setLevel(logging.DEBUG)
+# logger.addHandler(logging.StreamHandler())
+# logger.addHandler(logging.FileHandler('sigvisualizer.log'))
+
+handlers = [logging.StreamHandler(), logging.FileHandler('sigvisualizer.log')]
+for handler in handlers:
+	handler.setLevel(logging.DEBUG)
+	handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+	logger.addHandler(handler)
+	logger.info(f'Added handler {handler}')
+
+logger.debug(f'Logger initialized')
+
 
 
 class UpdateStreamsTask(QRunnable):
@@ -75,12 +88,86 @@ class SigVisualizer(QMainWindow):
 		self.ui.chkEnableAutoUpdate.clicked.connect(self.toggle_auto_refresh_streams)
 		self.toggle_auto_refresh_streams()
 
-
 		self.ui.btnUpdateActivePlots.clicked.connect(self.perform_update_all_plots)
 
+		## Handle right-sidebar with continuous stream table in it
+		self.right_sidebar_table_cols_map = {i:v for i, v in enumerate(["Timestamp", "Stream", "Description"])} # QTableWidgetItem("Some text")
+		self.ui.tblViewMessages.setColumnCount(3)
+		self.ui.tblViewMessages.setHorizontalHeaderItem(0, QTableWidgetItem("Timestamp"))
+		self.ui.tblViewMessages.setHorizontalHeaderItem(1, QTableWidgetItem("Stream"))
+		self.ui.tblViewMessages.setHorizontalHeaderItem(2, QTableWidgetItem("Description"))
+		self.ui.tblViewMessages.setRowCount(0)
+		self.ui.tblViewMessages.setColumnWidth(0, 100)
+		self.ui.tblViewMessages.setColumnWidth(1, 100)
+		self.ui.tblViewMessages.setColumnWidth(2, 100)
+		self.ui.tblViewMessages.setHorizontalHeaderLabels(["Timestamp", "Stream", "Description"])
+		## connect events:
+		# self.ui.tblViewMessages.commitData()
+		# self.ui.tblViewMessages.rowAt(0)
+		# self.ui.tblViewMessages.dataChanged.connect(self.update_stream_table)
+		# self.ui.tblViewMessages.itemChanged.connect(self.update_stream_table)
+		# self.ui.tblViewMessages.itemClicked.connect(self.update_stream_table)
+		# self.ui.tblViewMessages.itemDoubleClicked.connect(self.update_stream_table)
+		# self.ui.tblViewMessages.itemSelectionChanged.connect(self.update_stream_table)
+		# self.ui.tblViewMessages.itemSelectionChanged.connect(self.update_stream_table)
 
 
-	
+		self.ui.widget.dataTr.sendData.connect(self.on_stream_data_update)
+
+		# self.sendData.emit(stream_name, sig_ts, sig_data, send_mrk_ts, send_mrk_data)
+
+
+	def add_right_sidebar_table_row(self, timestamp: str, stream: str, description: str):
+		""" adds a new row to the right-sidebar table with the given values """
+
+		rowPosition = self.ui.tblViewMessages.rowCount()
+
+
+		currentRowCount = self.ui.tblViewMessages.rowCount() #necessary even when there are no rows in the table
+		# self.ui.tblViewMessages.insertRow(currentRowCount, 0, QTableWidgetItem("Some text"))
+		self.ui.tblViewMessages.insertRow(rowPosition) ## add a new row at the end
+
+		## Update values using setItem
+		row_values_dict = {col_ix:(v or '') for col_ix, v in enumerate([timestamp, stream, description])}
+
+		for col_ix, col_name in self.right_sidebar_table_cols_map.items():
+			item_value: str = row_values_dict.get(col_ix, '')
+			self.ui.tblViewMessages.setItem(rowPosition, col_ix, QTableWidgetItem(item_value))
+
+
+		# self.ui.tblViewMessages.insertRow(rowPosition)
+		# guest_name = self.lineEdit.text()
+		# guest_email = self.lineEdit_2.text()
+		# numcols = self.ui.tblViewMessages.columnCount()
+		# numrows = self.ui.tblViewMessages.rowCount()           
+		# self.ui.tblViewMessages.setRowCount(numrows)
+		# self.ui.tblViewMessages.setColumnCount(numcols)           
+		# self.ui.tblViewMessages.setItem(numrows -1, 0, QtGui.QTableWidgetItem(guest_name))
+		# self.ui.tblViewMessages.setItem(numrows -1, 1, QtGui.QTableWidgetItem(guest_email))
+		# print "guest added"         
+		# print(f'Added row {rowPosition} with values: {row_values_dict}')
+		logger.info(f'Added row {rowPosition} with values: {row_values_dict}')
+
+
+
+	def on_stream_data_update(self, sig_ts, sig_buffer, marker_ts, marker_buffer, marker_stream_name):
+		""" called every time any stream is updated during the main run loop to update the markers table. 
+		
+		"""
+		logger.info(f'SigVisualizer.on_stream_data_update(...) started.')
+
+		n_samples = len(marker_buffer)
+		n_channels = len(marker_buffer[0]) if n_samples > 0 else 0 ## should always be 1
+
+		# Plot markers as scatter points
+		if marker_ts and marker_buffer and (n_channels > 0):
+			for ts, stream_name, ms in zip(marker_ts, marker_stream_name, marker_buffer):
+				self.add_right_sidebar_table_row(timestamp=ts, stream=stream_name, description=ms)
+
+		logger.info(f'SigVisualizer scrolling table to bottom...')
+		self.ui.tblViewMessages.scrollToBottom()
+		logger.info(f'SigVisualizer.on_stream_data_update(...) finished.')
+			
 
 	def manual_refresh_streams(self):
 		self.run_update_streams()

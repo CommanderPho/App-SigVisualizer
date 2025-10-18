@@ -7,7 +7,7 @@ logger = logging.getLogger("phohale.sigvisualizer.DataThread")
 
 class DataThread(QThread):
     updateStreamNames = pyqtSignal(list, int) ## emitted when the stream names are updated
-    sendData = pyqtSignal(str, list, list, list, list) ## emitted per-stream: (stream_name, sig_ts, sig_buffer, marker_ts, marker_buffer)
+    sendData = pyqtSignal(str, list, list, list, list, list) ## emitted per-stream: (stream_name, sig_ts, sig_buffer, marker_ts, marker_buffer, marker_stream_name)
     changedStream = pyqtSignal() ## emitted when the stream selection is changed. Based off of the idea that only one stream is selected at a time.
     
     def_stream_parms = {'chunk_idx': 0, 'metadata': {}, 'srate': None, 'chunkSize': None,
@@ -40,7 +40,7 @@ class DataThread(QThread):
             for k, stream in enumerate(self.streams):
                 n = stream.name()
                 stream_params = copy.deepcopy(self.def_stream_parms)
-                stream_params['inlet'] = pylsl.StreamInlet(stream)
+                stream_params['inlet'] = pylsl.StreamInlet(stream, processing_flags=(pylsl.proc_monotonize|pylsl.proc_clocksync))
                 # Extended meta data using info object
                 info = stream_params['inlet'].info()
                 channelLabels = []
@@ -58,8 +58,7 @@ class DataThread(QThread):
                     "srate": stream.nominal_srate(),
                     "ch_labels": channelLabels
                 })
-                stream_params['is_marker'] = stream.channel_format() in ["String", pylsl.cf_string]\
-                                             and (stream.nominal_srate() == pylsl.IRREGULAR_RATE)
+                stream_params['is_marker'] = (stream.channel_format() in ["String", pylsl.cf_string]) and (stream.nominal_srate() == pylsl.IRREGULAR_RATE)
                 if not stream_params['is_marker']:
                     if (self.sig_strm_idx < 0):
                         self.sig_strm_idx = k
@@ -85,15 +84,23 @@ class DataThread(QThread):
             logger.info(f'DataThread run() started.')
             while self._running:
                 # Aggregate markers once per loop; reuse for all numeric streams
-                send_mrk_ts, send_mrk_data = [], []
+                send_mrk_ts, send_mrk_data, send_mrk_stream_name = [], [], []
                 is_marker = [_['is_marker'] for _ in self.stream_params]
                 if any(is_marker):
                     for stream_ix, params in enumerate(self.stream_params):
                         if is_marker[stream_ix]:
                             d, ts = params['inlet'].pull_chunk()
-                            if ts:
+                            a_stream_name: str = params['metadata'].get('name') or f'stream[{stream_ix}]'
+                            ## hitting this a lot, but ts and d are always empty
+                            if ts:                                
+                                logger.info(f'\t marker stream [{stream_ix}] [{a_stream_name}] in .run(): {len(d)} samples, {len(ts)} timestamps.')
+                                send_mrk_stream_name.extend([a_stream_name] * len(d))
                                 send_mrk_data.extend(d)
                                 send_mrk_ts.extend(ts)
+                    ## END for stream_ix, params in enumerate(self.stream_params)...
+                ## END if any(is_marker)...
+
+
 
                 # Pull chunks for each non-marker stream and emit individually
                 for stream_ix, params in enumerate(self.stream_params):
@@ -115,7 +122,7 @@ class DataThread(QThread):
 
                     if sig_ts or send_mrk_ts:
                         stream_name = params['metadata'].get('name') or f'stream_{stream_ix}'
-                        self.sendData.emit(stream_name, sig_ts, sig_data, send_mrk_ts, send_mrk_data)
+                        self.sendData.emit(stream_name, sig_ts, sig_data, send_mrk_ts, send_mrk_data, send_mrk_stream_name)
 
         logger.info(f'DataThread run() finished.')
 
