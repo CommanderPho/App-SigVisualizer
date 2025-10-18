@@ -122,7 +122,6 @@ class SigVisualizer(QMainWindow):
 
 		rowPosition = self.ui.tblViewMessages.rowCount()
 
-
 		currentRowCount = self.ui.tblViewMessages.rowCount() #necessary even when there are no rows in the table
 		# self.ui.tblViewMessages.insertRow(currentRowCount, 0, QTableWidgetItem("Some text"))
 		self.ui.tblViewMessages.insertRow(rowPosition) ## add a new row at the end
