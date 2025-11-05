@@ -1,0 +1,116 @@
+name: Build Executable
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python-version: ["3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install UV
+      run: |
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+          echo "$env:USERPROFILE\.cargo\bin" >> $GITHUB_PATH
+        else
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        fi
+      shell: bash
+
+    - name: Install dependencies with UV
+      run: |
+        uv sync
+
+    - name: Generate UI files (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        uv run python -m PyQt5.uic.pyuic -x ui_sigvisualizer.ui -o ui_sigvisualizer.py
+
+    - name: Generate UI files (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        uv run python -m PyQt5.uic.pyuic -x ui_sigvisualizer.ui -o ui_sigvisualizer.py
+
+    - name: Build executable with PyInstaller
+      run: |
+        uv run pyinstaller main.spec
+
+    - name: Create artifact name
+      id: artifact
+      run: |
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          echo "name=sigvisualizer-windows" >> $GITHUB_OUTPUT
+          echo "path=dist/main" >> $GITHUB_OUTPUT
+        elif [ "$RUNNER_OS" == "Linux" ]; then
+          echo "name=sigvisualizer-linux" >> $GITHUB_OUTPUT
+          echo "path=dist/main" >> $GITHUB_OUTPUT
+        else
+          echo "name=sigvisualizer-macos" >> $GITHUB_OUTPUT
+          echo "path=dist/main" >> $GITHUB_OUTPUT
+        fi
+      shell: bash
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.artifact.outputs.name }}
+        path: ${{ steps.artifact.outputs.path }}
+        retention-days: 30
+
+    - name: Upload to release (if release)
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ steps.artifact.outputs.path }}
+        asset_name: ${{ steps.artifact.outputs.name }}
+        asset_content_type: application/octet-stream
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies with UV
+      run: |
+        uv sync
+
+    - name: Generate UI files
+      run: |
+        uv run python -m PyQt5.uic.pyuic -x ui_sigvisualizer.ui -o ui_sigvisualizer.py
+
+    - name: Test import (basic smoke test)
+      run: |
+        uv run python -c "import sys; sys.path.append('.'); import sigvisualizer; print('Import successful')"
+      env:
+        QT_QPA_PLATFORM: offscreen
